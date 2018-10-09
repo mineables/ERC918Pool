@@ -11,7 +11,7 @@ Y88888P 88   YD   Y88P'  d8'     VP  Y888P'     88        Y88P'    Y88P'  Y88888
 const express = require('express')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
-const web3utils = require('web3-utils')
+// const web3utils = require('web3-utils')
 const fs = require('fs')
 const mongodb = require('mongodb')
 const ObjectId = require('mongodb').ObjectId
@@ -26,7 +26,6 @@ const VALID_STATUS = 'VALID'
 
 console.log(process.env.TITLE + ' version ' + process.env.VERSION)
 if(process.env.TEST_MODE) { console.log('-- Running in TEST MODE --') }
-const MAX_TARGET = process.env.TEST_MODE ? web3utils.toBN( 2 ).pow( web3utils.toBN( 244 ) ) : web3utils.toBN( 2 ).pow( web3utils.toBN( 234 ) )
 
 var app = express()
 var MongoClient = mongodb.MongoClient;
@@ -79,7 +78,7 @@ const asyncMiddleware = fn =>
 // displays title and information about the service
 app.get('/', function (request, response) {
   // response.json(process.env.TITLE + ' version ' + process.env.VERSION)
-  response.json(util.config())
+  response.json(util.config(web3))
 })
 
 // View all submission transactions for an account share
@@ -115,37 +114,29 @@ app.post('/mint', asyncMiddleware( async (request, response, next) => {
     packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
 	let res = await dbo.collection('transactions').insertOne(packet)
 
-	let payouts = await snapPayout(packet.txnId)
+	let payouts = await util.snapPayout(packet.txnId)
 	await dbo.collection('payouts').insertMany(payouts)
 	response.json(packet)
 }))
 
+// View all payouts given out by this pool
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/payouts
 app.get('/payouts', asyncMiddleware( async (request, response, next) => {
 	let res = await dbo.collection('payouts').find({}).toArray()
     response.json(res)
 }))
 
+// View all payouts given out by this pool
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/payouts/0xaccount..
 app.get('/payouts/:account', asyncMiddleware( async (request, response, next) => {
 	let res = await dbo.collection('payouts').find({ account: request.params.account }).toArray()
     response.json(res)
 }))
 
-app.get('/snapPayout', asyncMiddleware( async (request, response, next) => {
-	let payouts = await snapPayout('0xdeadbeef')
+app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => {
+	let payouts = await util.snapPayout('0xdeadbeef')
 	response.json( payouts )
 }))
-
-async function snapPayout (txnId) {
-	let rwd = await mineable.getReward(web3)
-	let reward = rwd - (rwd * process.env.POOL_FEE_PCT / 100 )
-	let docs = await util.poolShares()
-	let payouts = []
-	docs.forEach((doc) => {
-		payout = reward * ( doc.percentShare / 100 )
-		payouts.push({ payout: payout, account: doc._id.origin, mintTxn: txnId })
-	})
-	return payouts
-}
 
 // request a share to solve
 // curl -d '{"origin":"0xaddress"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
@@ -155,7 +146,7 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	packet.request = pRequest
 	packet.origin = pRequest.origin
 	packet.difficulty = process.env.DEFAULT_SHARE_DIFFICULTY
-	packet.challengeNumber = web3utils.randomHex(32)
+	packet.challengeNumber = web3.utils.randomHex(32)
 	packet.start = new Date().getTime()
 	packet.finish = null
 	let res = await dbo.collection('shares').insertOne(packet)
