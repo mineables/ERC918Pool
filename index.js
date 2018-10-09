@@ -21,12 +21,12 @@ var web3 = new Web3()
 const vault = require('./lib/vault')
 const mineable = require('./lib/mineable-interface')
 
-const SETTINGS = JSON.parse(fs.readFileSync('settings.json'))
-const MINIMUM_SHARES_FOR_HASHRATE = SETTINGS.MINIMUM_SHARES_FOR_HASHRATE
-const PORT = SETTINGS.PORT
-const POOL_FEE_PCT = SETTINGS.POOL_FEE_PCT
-const AUTOPRUNE_INTERVAL_MINUTES = SETTINGS.AUTOPRUNE_INTERVAL_MINUTES
-const SHARE_LIMIT = SETTINGS.SHARE_LIMIT
+//const SETTINGS = JSON.parse(fs.readFileSync('settings.json'))
+const MINIMUM_SHARES_FOR_HASHRATE = process.env.MINIMUM_SHARES_FOR_HASHRATE
+const PORT = process.env.PORT
+const POOL_FEE_PCT = process.env.POOL_FEE_PCT
+const AUTOPRUNE_INTERVAL_MINUTES = process.env.AUTOPRUNE_INTERVAL_MINUTES
+const SHARE_LIMIT = process.env.SHARE_LIMIT
 const INVALID_STATUS = 'INVALID'
 const VALID_STATUS = 'VALID'
 
@@ -37,7 +37,7 @@ const ETHEREUM_PROVIDER_URL = 'https://sokol.poa.network'
 
 const VALID_MILLISECONDS_WINDOW = 1000 * 60 * 60
 
-console.log(SETTINGS.TITLE + ' version ' + SETTINGS.VERSION)
+console.log(process.env.TITLE + ' version ' + process.env.VERSION)
 
 // prod mode
 // const MAX_TARGET = web3utils.toBN( 2 ).pow( web3utils.toBN( 234 ) )
@@ -47,7 +47,7 @@ console.log(SETTINGS.TITLE + ' version ' + SETTINGS.VERSION)
 const MAX_TARGET = web3utils.toBN( 2 ).pow( web3utils.toBN( 244 ) )
 // end test mode
 
-const DEFAULT_SHARE_DIFFICULTY = SETTINGS.DEFAULT_SHARE_DIFFICULTY
+const DEFAULT_SHARE_DIFFICULTY = process.env.DEFAULT_SHARE_DIFFICULTY
 
 var app = express()
 
@@ -59,7 +59,7 @@ var poolAccount
 
 // start up the app
 app.listen(PORT, async() => {
-	console.log(SETTINGS.TITLE + ' version ' + SETTINGS.VERSION)
+	console.log(process.env.TITLE + ' version ' + process.env.VERSION)
     // force login/setup
     title()
     
@@ -123,7 +123,7 @@ const asyncMiddleware = fn =>
 
 // displays title and information about the service
 app.get('/', function (request, response) {
-  response.json(SETTINGS.TITLE + ' version ' + SETTINGS.VERSION)
+  response.json(process.env.TITLE + ' version ' + process.env.VERSION)
 })
 
 // View all submission transactions for an account share
