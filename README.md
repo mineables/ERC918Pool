@@ -36,7 +36,7 @@ VALID_MILLISECONDS_WINDOW=60000
 TEST_MODE=true
 ```
 
-#Docker
+# Docker
 
 To run the service in docker:
 ```
