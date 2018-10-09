@@ -11,10 +11,9 @@ Y88888P 88   YD   Y88P'  d8'     VP  Y888P'     88        Y88P'    Y88P'  Y88888
 const express = require('express')
 const fetch = require('node-fetch')
 const FormData = require('form-data')
-// const web3utils = require('web3-utils')
 const fs = require('fs')
 const mongodb = require('mongodb')
-const ObjectId = require('mongodb').ObjectId
+const ObjectId = mongodb.ObjectId
 const Web3 = require('web3')
 var web3 = new Web3()
 const util = require('./lib/util')
@@ -110,7 +109,7 @@ app.post('/mint', asyncMiddleware( async (request, response, next) => {
     packet.delegate = this.poolAccount.address
     // packet.status = 'SUCCESS'
     packet.txnId = ( await mineable.submit( this.poolAccount, pRequest.nonce, pRequest.origin, pRequest.signature) ).transactionHash
-    packet.hashrate = await accountHashrate(pRequest.origin)
+    packet.hashrate = await util.accountHashrate(pRequest.origin)
     packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
 	let res = await dbo.collection('transactions').insertOne(packet)
 
@@ -194,38 +193,10 @@ app.get('/shares/:account', asyncMiddleware( async (request, response, next) => 
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/hashrate/0xaddress
 app.get('/hashrate/:account', asyncMiddleware( async (request, response, next) => {
 	var account = request.params.account
-    let hashrateResponse = await accountHashrate( account )
+    let hashrateResponse = await util.accountHashrate( account )
     console.log(hashrateResponse)
 	response.json(hashrateResponse)
 }))
-
-async function accountHashrate (account) {
-	const validTimeAgo = Date.now() - process.env.VALID_MILLISECONDS_WINDOW
-	let docs = await dbo.collection('shares').aggregate(
-	   [
-	      {
-	   		$match: {
-	   		   'finish': { $gt: validTimeAgo }
-     		} 
-     	  },
-	      {
-	        $group : {
-	           _id : {origin: "$origin"},
-	           averageHashrate: { $avg: "$hashrate" }
-	        }
-	      }
-	   ]
-	).toArray()
-	var globalHashrate = docs.reduce(function (accumulator, record) {
-	  return accumulator + record.averageHashrate;
-	}, 0)
-	var accountHashRate = docs.filter( r => r._id.origin === account )[0].averageHashrate
-	var hashrateResponse = {}
-	hashrateResponse.globalHashrate = globalHashrate
-	hashrateResponse.accountHashRate = accountHashRate
-	hashrateResponse.percentShare = accountHashRate / globalHashrate * 100
-	return hashrateResponse
-}
 
 // Get the hashrate for the entire pool
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/hashrate
@@ -256,14 +227,7 @@ app.get('/pool/hashrate', asyncMiddleware( async (request, response, next) => {
 	response.json(hashrateResponse)
 }))
 
-// prune the db
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/prune
-app.get('/prune', function (request, response) {
-	util.prune(dbo)
-	response.json({'complete': true})
-})
-
-// prune the db
+// list all of the pool's shares
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/shares
 app.get('/pool/shares', asyncMiddleware( async (request, response, next) => {
 	response.json( await util.poolShares() )
