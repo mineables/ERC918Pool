@@ -79,7 +79,7 @@ const asyncMiddleware = fn =>
 // displays title and information about the service
 app.get('/', function (request, response) {
   // response.json(process.env.TITLE + ' version ' + process.env.VERSION)
-  response.json(config())
+  response.json(util.config())
 })
 
 // View all submission transactions for an account share
