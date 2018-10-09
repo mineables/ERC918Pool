@@ -17,8 +17,11 @@ MONGO_HOST=<host>
 MONGO_PORT=<port>
 MONGO_DB=<db-name>
 
-# Account user
+# Pool account
 PRIVATE_KEY=0x******
+
+# Ethereum settings
+ETHEREUM_PROVIDER_URL=https://sokol.poa.network
 
 # Pool settings
 TITLE=ERC918 Mining Pool Relayer (TEST MODE)
@@ -29,6 +32,8 @@ DEFAULT_SHARE_DIFFICULTY=1
 AUTOPRUNE_INTERVAL_MINUTES=10
 POOL_FEE_PCT=6
 PORT=3000
+VALID_MILLISECONDS_WINDOW=60000
+TEST_MODE=true
 ```
 
 #Docker
