@@ -9,8 +9,9 @@ Y88888P 88   YD   Y88P'  d8'     VP  Y888P'     88        Y88P'    Y88P'  Y88888
 `)}
 
 const express = require('express')
+const basicAuth = require('basic-auth-connect')
+const schedule = require('node-schedule')
 const fetch = require('node-fetch')
-const FormData = require('form-data')
 const fs = require('fs')
 const mongodb = require('mongodb')
 const ObjectId = mongodb.ObjectId
@@ -27,6 +28,7 @@ console.log(process.env.TITLE + ' version ' + process.env.VERSION)
 if(process.env.TEST_MODE) { console.log('-- Running in TEST MODE --') }
 
 var app = express()
+
 var MongoClient = mongodb.MongoClient;
 var dbo
 var poolAccount
@@ -39,11 +41,12 @@ app.listen(process.env.PORT, async() => {
     
     // initialize objects
     web3.setProvider(process.env.ETHEREUM_PROVIDER_URL)
+    util.init(web3)
 	await mineable.init(web3)
 	let res = await vault.init(web3)
 	if(res == false) {
 		process.exit()
-	}
+	}	
 	this.poolAccount = res.account
 
 	console.log('Pool address: ' + this.poolAccount.address)
@@ -56,10 +59,21 @@ app.listen(process.env.PORT, async() => {
 	  // prune out older records
 	  util.prune(dbo)
 	  setInterval( () => util.prune(dbo), process.env.AUTOPRUNE_INTERVAL_MINUTES * 1000 * 60)
+
+	  // payouts schedule
+	  schedule.scheduleJob(process.env.PAYOUTS_CRON, function(){
+	    console.log('Prcoessing payouts...')
+	    util.processPayouts(dbo, this.poolAccount, mineable)
+	    console.log('Payouts complete.')
+	  })
 	})
 
 })
 
+var admin = express()
+// mount the admin app
+app.use('/admin', admin)
+admin.use(basicAuth('admin', process.env.ADMIN_PASSWORD))
 app.use(express.json())
 app.set('json spaces', 2)
 app.use(function(err, req, res, next) {
@@ -77,7 +91,7 @@ const asyncMiddleware = fn =>
 // displays title and information about the service
 app.get('/', function (request, response) {
   // response.json(process.env.TITLE + ' version ' + process.env.VERSION)
-  response.json(util.config(web3))
+  response.json(util.config())
 })
 
 // View all submission transactions for an account share
@@ -97,8 +111,8 @@ app.get('/mint/tx/:txnId', asyncMiddleware( async (request, response, next) => {
 
 // ERC918 - Mineable Mint Packet Metadata
 // submit a solution mint packet to be processed
-// curl -d '{"nonce": "0xnonce", "origin": "0xaddress", "signature": "0xsignature"}' -H "Content-Type: application/json" http://127.0.0.1:3000/mint
-app.post('/mint', asyncMiddleware( async (request, response, next) => {
+// curl -d '{"nonce": "0xnonce", "origin": "0xaddress", "signature": "0xsignature"}' -H "Content-Type: application/json" http://127.0.0.1:3000/mint/0x...
+app.post('/mint/:contract', asyncMiddleware( async (request, response, next) => {
 	var pRequest = request.body
 	var packet = {}
 	packet.request = pRequest
@@ -107,14 +121,15 @@ app.post('/mint', asyncMiddleware( async (request, response, next) => {
     packet.timestamp = new Date()
 
     packet.delegate = this.poolAccount.address
-    // packet.status = 'SUCCESS'
-    packet.txnId = ( await mineable.submit( this.poolAccount, pRequest.nonce, pRequest.origin, pRequest.signature) ).transactionHash
-    packet.hashrate = await util.accountHashrate(pRequest.origin)
+    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, pRequest.origin, pRequest.signature, request.params.contract) ).transactionHash
+    packet.hashrate = await util.accountHashrate( dbo, pRequest.origin )
     packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
 	let res = await dbo.collection('transactions').insertOne(packet)
 
-	let payouts = await util.snapPayout(packet.txnId)
-	await dbo.collection('payouts').insertMany(payouts)
+	let payouts = await util.snapPayout(dbo, packet.txnId, request.params.contract, mineable)
+	if(payouts.length > 0) { 
+		await dbo.collection('payouts').insertMany(payouts)
+	}
 	response.json(packet)
 }))
 
@@ -174,13 +189,11 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	var dif = p.finish - p.start
 	var seconds = Math.round( dif / 1000 )
 	p.seconds = seconds > 0 ? seconds : 1
-	p.hashrate = estimatedShareHashrate(p.difficulty, p.seconds)
+	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
 	await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
-
-	pruneSingle(pRequest.origin)
-
+	util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
-}))
+})) 
 
 // Get the hashrate share for an account
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/shares/0xaddress
@@ -193,7 +206,7 @@ app.get('/shares/:account', asyncMiddleware( async (request, response, next) => 
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/hashrate/0xaddress
 app.get('/hashrate/:account', asyncMiddleware( async (request, response, next) => {
 	var account = request.params.account
-    let hashrateResponse = await util.accountHashrate( account )
+    let hashrateResponse = await util.accountHashrate( dbo, account )
     console.log(hashrateResponse)
 	response.json(hashrateResponse)
 }))
@@ -201,7 +214,6 @@ app.get('/hashrate/:account', asyncMiddleware( async (request, response, next) =
 // Get the hashrate for the entire pool
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/hashrate
 app.get('/pool/hashrate', asyncMiddleware( async (request, response, next) => {
-	var account = request.params.account
     const validTimeAgo = Date.now() - process.env.VALID_MILLISECONDS_WINDOW
 	
 	let docs = await dbo.collection('shares').aggregate(
@@ -230,5 +242,22 @@ app.get('/pool/hashrate', asyncMiddleware( async (request, response, next) => {
 // list all of the pool's shares
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/shares
 app.get('/pool/shares', asyncMiddleware( async (request, response, next) => {
-	response.json( await util.poolShares() )
+	response.json( await util.poolShares(dbo) )
+}))
+
+// admin functions
+admin.get('/', asyncMiddleware( (request, response, next) => {
+	response.json('hello admin')
+}))
+
+// prune the db
+admin.get('/prune', asyncMiddleware( async (request, response, next) => {
+	util.prune(dbo)
+	response.json('done')
+}))
+
+// admin payout single
+admin.get('/payout/:account', asyncMiddleware( async (request, response, next) => {
+	util.processPayoutSingle(dbo, this.poolAccount, mineable, request.params.account)
+    response.json('done')
 }))
