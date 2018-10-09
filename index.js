@@ -34,6 +34,8 @@ const VALID_MILLISECONDS_WINDOW = process.env.VALID_MILLISECONDS_WINDOW
 
 console.log(process.env.TITLE + ' version ' + process.env.VERSION)
 
+if(process.env.TEST_MODE) { console.log('-- Running in TEST MODE --') }
+
 const MAX_TARGET = process.env.TEST_MODE ? web3utils.toBN( 2 ).pow( web3utils.toBN( 244 ) ) : web3utils.toBN( 2 ).pow( web3utils.toBN( 234 ) )
 
 var app = express()
