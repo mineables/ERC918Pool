@@ -153,14 +153,14 @@ app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => 
 }))
 
 // request a share to solve
-// curl -d '{"origin":"0xaddress"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
+// curl -d '{"origin":"0xaddress", "contract": "0xcontract"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	var pRequest = request.body
 	var packet = {}
 	packet.request = pRequest
 	packet.origin = pRequest.origin
 	packet.difficulty = process.env.DEFAULT_SHARE_DIFFICULTY
-	packet.challengeNumber = web3.utils.randomHex(32)
+	packet.challengeNumber = await mineable.getChallengeNumber(packet.request.contract) // web3.utils.randomHex(32)
 	packet.start = new Date().getTime()
 	packet.finish = null
 	let res = await dbo.collection('shares').insertOne(packet)
@@ -168,7 +168,7 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 }))
 
 // submit a solved share
-// curl -d '{"origin":"0xaddress","challengeNumber":"0xchallengeNumber","nonce":"0xdeadbeef"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
+// curl -d '{"origin":"0xaddress","challengeNumber":"0xchallengeNumber","nonce":"0xdeadbeef","contract": "0xcontract"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
   	var pRequest = request.body
 	var packet = {}
