@@ -168,15 +168,18 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 }))
 
 // submit a solved share
-// curl -d '{"origin":"0xaddress","uid":"vpOWChMmQrEbNx5y","nonce":"0xdeadbeef"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
+// curl -d '{"origin":"0xaddress","challengeNumber":"0xchallengeNumber","nonce":"0xdeadbeef"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
   	var pRequest = request.body
 	var packet = {}
 	packet.request = pRequest
 	packet.origin = pRequest.origin
-	let docs = await dbo.collection('shares').find(ObjectId(packet.request.uid)).toArray()
-	if( docs.length < 1 ) { throw 'Could not find share with _id:' + packet.request.uid}
-	let p = docs[0]
+	// let docs = await dbo.collection('shares').find(ObjectId(packet.request.uid)).toArray()
+	let p = await dbo.collection('shares').findOne({challengeNumber: packet.request.challengeNumber})
+	if( !p ) {
+		throw 'Could not find share with challengeNumber:' + packet.request.challengeNumber
+	}
+	//let p = docs[0]
 	// validate the share
 	if(!util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty)) {
 		throw 'error: Invalid nonce submitted'
@@ -190,7 +193,8 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	var seconds = Math.round( dif / 1000 )
 	p.seconds = seconds > 0 ? seconds : 1
 	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-	await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
+	// await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
+	await dbo.collection('shares').replaceOne({challengeNumber: packet.request.challengeNumber}, p)
 	util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
 })) 
