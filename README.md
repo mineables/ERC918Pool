@@ -33,7 +33,11 @@ AUTOPRUNE_INTERVAL_MINUTES=10
 POOL_FEE_PCT=6
 PORT=3000
 VALID_MILLISECONDS_WINDOW=60000
-TEST_MODE=true
+PAYOUTS_CRON=0 8 * * *
+TEST_MODE=false
+
+# Pool web admin, user is always 'admin'
+ADMIN_PASSWORD=<password>
 ```
 
 # Docker
