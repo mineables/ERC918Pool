@@ -314,3 +314,10 @@ admin.get('/payout/:account', asyncMiddleware( async (request, response, next) =
 	util.processPayoutSingle(dbo, this.poolAccount, mineable, request.params.account)
     response.json('done')
 }))
+
+// Get the blockshares share for a challengeNumber
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xchallengeNumber
+admin.get('/blockshares', asyncMiddleware( async (request, response, next) => {
+	let docs = await dbo.collection('shares').find({ }).toArray()
+    response.json(docs)
+}))
