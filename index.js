@@ -57,8 +57,10 @@ app.listen(process.env.PORT, async() => {
 	  if (err) throw err;
 	  dbo = db.db(process.env.MONGO_DB)
 	  // prune out older records
+	  /*
 	  util.prune(dbo)
 	  setInterval( () => util.prune(dbo), process.env.AUTOPRUNE_INTERVAL_MINUTES * 1000 * 60)
+	  */
 
 	  // payouts schedule
 	  schedule.scheduleJob(process.env.PAYOUTS_CRON, function(){
@@ -155,11 +157,15 @@ app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => 
 // request a share to solve
 // curl -d '{"origin":"0xaddress", "contract": "0xcontract"}', "vardiff": 65536 -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
+
+	if(!request.body.contract) {
+		throw 'packet did not request contract: ' + request.body
+	}
 	
 	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
 	if (p) {
 		// only allow one share at a time per user per contract to be mined
-		console.log('only allowed to process one share per account per contract')
+		console.log('only allowed to process one active share per account per contract')
 		response.json(p)
 		return
 	}
@@ -174,7 +180,6 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	} else {
 		packet.difficulty = parseInt(process.env.DEFAULT_SHARE_DIFFICULTY)
 	}
-
 	packet.challengeNumber = await mineable.getChallengeNumber(packet.request.contract)
 	packet.start = new Date().getTime()
 	packet.finish = null
@@ -206,9 +211,21 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	var seconds = Math.round( dif / 1000 )
 	p.seconds = seconds > 0 ? seconds : 1
 	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-	// await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
-	await dbo.collection('shares').replaceOne({challengeNumber: packet.request.challengeNumber}, p)
 
+	// await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
+	// await dbo.collection('shares').replaceOne({challengeNumber: packet.request.challengeNumber}, p)
+
+	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
+
+	// insert a blockshare record
+	/*
+	blockshare = {}
+	blockshare.origin = p.origin
+	blockshare.challengeNumber = p.challengeNumber
+	blockshare.blockCount = parseInt(p.difficulty)
+	await dbo.collection('blockshares').insertOne(blockshare)
+	*/
+	
 	//util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
 }))
@@ -217,11 +234,11 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xaddress
 app.get('/blockshares', asyncMiddleware( async (request, response, next) => {
 	let docs = await dbo.collection('shares').aggregate(
-	   [
+	   [	      
 	      {
 	        $group : {
 	           _id : {origin: "$origin", challengeNumber: "$challengeNumber"},
-	           totalDiff: { $sum: "$difficulty" }
+	           blockshares: { $sum: "$difficulty" }
 	        }
 	      }
 	   ]
@@ -229,20 +246,20 @@ app.get('/blockshares', asyncMiddleware( async (request, response, next) => {
     response.json(docs)
 }))
 
-// Get the blockshares share for an account
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xaddress
-app.get('/blockshares/:account', asyncMiddleware( async (request, response, next) => {
-    let docs = await dbo.collection('shares').aggregate(
+// Get the blockshares share for a challengeNumber
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xchallengeNumber
+app.get('/blockshares/:challengeNumber', asyncMiddleware( async (request, response, next) => {
+	let docs = await dbo.collection('shares').aggregate(
 	   [
-	   	  {
+	      {
 	   		$match: {
-	   		   'origin': { $eq: request.params.account }
+	   		   'challengeNumber': { $eq: request.params.challengeNumber }
      		} 
      	  },
 	      {
 	        $group : {
 	           _id : {origin: "$origin", challengeNumber: "$challengeNumber"},
-	           totalDiff: { $sum: "$difficulty" }
+	           blockshares: { $sum: "$difficulty" }
 	        }
 	      }
 	   ]
