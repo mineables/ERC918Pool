@@ -190,10 +190,10 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
 	// share counter
-	let counter = await dbo.collection('sharecount').findOne({origin: p.origin, challengeNumber: p.challengeNumber})
+	let counter = await dbo.collection('sharecount').findOne({_id: p.origin, challengeNumber: p.challengeNumber})
 	if( !counter ) {
 		counter = {}
-		counter.origin = p.origin
+		counter._id = p.origin
 		counter.challengeNumber = p.challengeNumber
 		counter.count = 0
 	}
