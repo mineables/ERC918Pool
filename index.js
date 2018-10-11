@@ -125,11 +125,6 @@ app.get('/payouts/:account', asyncMiddleware( async (request, response, next) =>
     response.json(res)
 }))
 
-app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => {
-	let payouts = await util.snapPayout('0xdeadbeef')
-	response.json( payouts )
-}))
-
 // request a share to solve
 // curl -d '{"origin":"0xaddress", "contract": "0xcontract", "vardiff": 65536}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
