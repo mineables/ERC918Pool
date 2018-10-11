@@ -190,17 +190,17 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
 	// share counter
-	let counter = await dbo.collection('sharecount').findOne({_id: p.origin, challengeNumber: p.challengeNumber})
+	let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
 	if( !counter ) {
 		counter = {}
-		counter._id = {_id: p.origin, challengeNumber: p.challengeNumber}
+		counter._id = {origin: p.origin, challengeNumber: p.challengeNumber}
 		counter.challengeNumber = p.challengeNumber
 		counter.count = 0
 		counter.count += parseInt(p.difficulty)
 		await dbo.collection('sharecount').insertOne(counter)
 	} else {
 		counter.count += parseInt(p.difficulty)
-		await dbo.collection('sharecount').findOneAndUpdate( {_id: {_id: p.origin, challengeNumber: p.challengeNumber}}, { $set: counter }, {upsert: true} )
+		await dbo.collection('sharecount').findOneAndUpdate( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} }, { $set: counter }, {upsert: true} )
 	}
 
 	// check if the solution solves a token block
