@@ -155,11 +155,11 @@ app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => 
 // request a share to solve
 // curl -d '{"origin":"0xaddress", "contract": "0xcontract"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
-
-	let p = await dbo.collection('shares').findOne({origin: request.origin, finish:{$ne: null}})
+	
+	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$ne: null}})
 	if (p) {
-		// only allow one share at a time per user to be mined
-		return p
+		// only allow one share at a time per user per contract to be mined
+		throw 'only allowed to process one share per account per contract'
 	}
 
 	var pRequest = request.body
@@ -182,18 +182,16 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	packet.request = pRequest
 	packet.origin = pRequest.origin
 	// let docs = await dbo.collection('shares').find(ObjectId(packet.request.uid)).toArray()
-	let p = await dbo.collection('shares').findOne({challengeNumber: packet.request.challengeNumber})
+	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$ne: null}})
 	if( !p ) {
 		throw 'Could not find share with challengeNumber:' + packet.request.challengeNumber
 	}
-	//let p = docs[0]
+
 	// validate the share
 	if(!util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty)) {
-		throw 'error: Invalid nonce submitted'
+		throw 'Invalid nonce submitted'
 	}
-	if(p.finish !== null) {
-		throw 'error: Share has already been submitted'
-	}
+
 	p.status = VALID_STATUS
 	p.finish = new Date().getTime()
 	var dif = p.finish - p.start
