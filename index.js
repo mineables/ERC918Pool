@@ -228,59 +228,32 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 
 	}
+
+	// now delete the share, since its been acounted for
+	await dbo.collection('shares').deleteOne({_id: p._id})
 	
 	response.json(p)
+}))
+
+// Get the hashrate share for an account
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares
+app.get('/blockshares', asyncMiddleware( async (request, response, next) => {
+	let res = await dbo.collection('sharecount').find({}).toArray()
+    response.json(res)
 }))
 
 // Get the blockshares share for a challengeNumber
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/challenge/0xchallengeNumber
 app.get('/blockshares/challenge/:challengeNumber', asyncMiddleware( async (request, response, next) => {
-	let docs = await util.blockShares(dbo, request.params.challengeNumber)
+	let docs = await util.shareCount(dbo, request.params.challengeNumber)
     response.json(docs)
 }))
 
 // Get the hashrate share for an account
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/account/0xaddress
 app.get('/blockshares/account/:account', asyncMiddleware( async (request, response, next) => {
-	let res = await dbo.collection('shares').find({ origin: request.params.account }).toArray()
+	let res = await dbo.collection('sharecount').find({ _id: request.params.account }).toArray()
     response.json(res)
-}))
-
-// Get the hashrate share for an account
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/hashrate/0xaddress
-app.get('/hashrate/:account', asyncMiddleware( async (request, response, next) => {
-	var account = request.params.account
-    let hashrateResponse = await util.accountHashrate( dbo, account )
-    console.log(hashrateResponse)
-	response.json(hashrateResponse)
-}))
-
-// Get the hashrate for the entire pool
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/hashrate
-app.get('/hashrate', asyncMiddleware( async (request, response, next) => {
-    const validTimeAgo = Date.now() - process.env.VALID_MINUTES_WINDOW * 60 * 1000
-	
-	let docs = await dbo.collection('shares').aggregate(
-	   [
-	      {
-	   		$match: {
-	   		   'finish': { $gt: validTimeAgo }
-     		} 
-     	  },
-	      {
-	        $group : {
-	           _id : {origin: "$origin"},
-	           averageHashrate: { $avg: "$hashrate" }
-	        }
-	      }
-	   ]
-	).toArray()
-	var globalHashrate = docs.reduce(function (accumulator, record) {
-	  return accumulator + record.averageHashrate;
-	}, 0)
-	var hashrateResponse = {}
-	hashrateResponse.globalHashrate = globalHashrate
-	response.json(hashrateResponse)
 }))
 
 // list archive
@@ -289,7 +262,7 @@ app.get('/archive', asyncMiddleware( async (request, response, next) => {
     response.json(docs)
 }))
 
-// admin functions
+//  --- admin functions ---
 admin.get('/', asyncMiddleware( (request, response, next) => {
 	response.json('hello admin')
 }))
