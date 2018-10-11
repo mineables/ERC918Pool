@@ -25,7 +25,7 @@ const INVALID_STATUS = 'INVALID'
 const VALID_STATUS = 'VALID'
 
 console.log(process.env.TITLE + ' version ' + process.env.VERSION)
-if(process.env.TEST_MODE) { console.log('-- Running in TEST MODE --') }
+if(process.env.TEST_MODE === true) console.log('-- Running in TEST MODE --')
 
 var app = express()
 
