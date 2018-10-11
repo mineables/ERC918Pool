@@ -156,7 +156,7 @@ app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => 
 // curl -d '{"origin":"0xaddress", "contract": "0xcontract"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	
-	let p = await dbo.collection('shares').findOne({origin: request.body.origin, request.contract: request.body.contract, finish:{$ne: null}})
+	let p = await dbo.collection('shares').findOne({origin: request.body.origin, 'request.contract': request.body.contract, finish:{$ne: null}})
 	if (p) {
 		// only allow one share at a time per user per contract to be mined
 		throw 'only allowed to process one share per account per contract'
