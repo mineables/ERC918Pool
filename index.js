@@ -197,7 +197,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		counter.challengeNumber = p.challengeNumber
 		counter.count = 0
 		counter.count += parseInt(p.difficulty)
-		
+		await dbo.collection('sharecount').insertOne(counter)
 	} else {
 		counter.count += parseInt(p.difficulty)
 		await dbo.collection('sharecount').findOneAndUpdate( {_id: p.origin, challengeNumber: p.challengeNumber}, { $set: counter }, {upsert: true} )
