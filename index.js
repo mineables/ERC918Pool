@@ -227,6 +227,9 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		// clear out all submitted shares
 		await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 
+	} else {
+		console.log('Partial solution')
+		console.log( JSON.stringify(pRequest) )
 	}
 
 	// now delete the share, since its been acounted for
