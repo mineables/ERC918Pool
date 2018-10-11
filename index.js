@@ -153,21 +153,31 @@ app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => 
 }))
 
 // request a share to solve
-// curl -d '{"origin":"0xaddress", "contract": "0xcontract"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
+// curl -d '{"origin":"0xaddress", "contract": "0xcontract"}', "vardiff": 65536 -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	
-	let p = await dbo.collection('shares').findOne({origin: request.body.origin, 'request.contract': request.body.contract, finish:{$ne: null}})
+	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
 	if (p) {
 		// only allow one share at a time per user per contract to be mined
-		throw 'only allowed to process one share per account per contract'
+		console.log('only allowed to process one share per account per contract')
+		response.json(p)
+		return
 	}
 
 	var pRequest = request.body
 	var packet = {}
 	packet.request = pRequest
 	packet.origin = pRequest.origin
-	packet.difficulty = process.env.DEFAULT_SHARE_DIFFICULTY
-	packet.challengeNumber = await mineable.getChallengeNumber(packet.request.contract) // web3.utils.randomHex(32)
+	packet.contract = request.body.contract
+	if(request.body.vardiff && request.body.vardiff > process.env.DEFAULT_SHARE_DIFFICULTY) {
+		packet.difficulty = parseInt(vardiff)
+	} else {
+		packet.difficulty = parseInt(process.env.DEFAULT_SHARE_DIFFICULTY)
+	}
+
+	packet.difficulty = web3.utils.randomHex(32)
+
+	packet.challengeNumber = await mineable.getChallengeNumber(packet.request.contract)
 	packet.start = new Date().getTime()
 	packet.finish = null
 	let res = await dbo.collection('shares').insertOne(packet)
@@ -184,7 +194,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	// let docs = await dbo.collection('shares').find(ObjectId(packet.request.uid)).toArray()
 	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
 	if( !p ) {
-		throw 'Could not find share with challengeNumber:' + packet.request.challengeNumber
+		throw 'Could not find share'
 	}
 
 	// validate the share
@@ -200,9 +210,47 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
 	// await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
 	await dbo.collection('shares').replaceOne({challengeNumber: packet.request.challengeNumber}, p)
-	util.pruneSingle(dbo, pRequest.origin)
+
+	//util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
-})) 
+}))
+
+// Get the all blockshares in the pool
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xaddress
+app.get('/blockshares', asyncMiddleware( async (request, response, next) => {
+	let docs = await dbo.collection('shares').aggregate(
+	   [
+	      {
+	        $group : {
+	           _id : {origin: "$origin", challengeNumber: "$challengeNumber"},
+	           totalDiff: { $sum: "$difficulty" }
+	        }
+	      }
+	   ]
+	).toArray()
+    response.json(docs)
+}))
+
+// Get the blockshares share for an account
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xaddress
+app.get('/blockshares/:account', asyncMiddleware( async (request, response, next) => {
+    let docs = await dbo.collection('shares').aggregate(
+	   [
+	   	  {
+	   		$match: {
+	   		   'origin': { $eq: request.params.account }
+     		} 
+     	  },
+	      {
+	        $group : {
+	           _id : {origin: "$origin", challengeNumber: "$challengeNumber"},
+	           totalDiff: { $sum: "$difficulty" }
+	        }
+	      }
+	   ]
+	).toArray()
+    response.json(docs)
+}))
 
 // Get the hashrate share for an account
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/shares/0xaddress
