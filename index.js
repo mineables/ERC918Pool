@@ -176,7 +176,7 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	packet.origin = pRequest.origin
 	packet.contract = request.body.contract
 	if(request.body.vardiff && request.body.vardiff > process.env.DEFAULT_SHARE_DIFFICULTY) {
-		packet.difficulty = parseInt(vardiff)
+		packet.difficulty = parseInt(request.body.vardiff)
 	} else {
 		packet.difficulty = parseInt(process.env.DEFAULT_SHARE_DIFFICULTY)
 	}
@@ -211,59 +211,40 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	var seconds = Math.round( dif / 1000 )
 	p.seconds = seconds > 0 ? seconds : 1
 	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-
-	// await dbo.collection('shares').replaceOne({ '_id': ObjectId(packet.request.uid) }, p)
-	// await dbo.collection('shares').replaceOne({challengeNumber: packet.request.challengeNumber}, p)
-
 	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
-	// insert a blockshare record
-	/*
-	blockshare = {}
-	blockshare.origin = p.origin
-	blockshare.challengeNumber = p.challengeNumber
-	blockshare.blockCount = parseInt(p.difficulty)
-	await dbo.collection('blockshares').insertOne(blockshare)
-	*/
+	// check if the solution solves a token block
+	if( util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce) ) {
+		console.log('-- Found block solution -- ')
+		var packet = {}
+		packet.request = pRequest
+	    // attach additional metadata to the packet
+	    packet.origin = pRequest.origin
+	    packet.timestamp = new Date()
+
+	    packet.delegate = this.poolAccount.address
+	    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
+	    packet.hashrate = await util.accountHashrate( dbo, pRequest.origin )
+	    // packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
+		let res = await dbo.collection('transactions').insertOne(packet)
+
+		let payouts = await util.snapPayout(dbo, packet.txnId, p.contract, mineable, p.challengeNumber)
+		if(payouts.length > 0) { 
+			await dbo.collection('payouts').insertMany(payouts)
+		}
+		// response.json(packet)
+	} else {
+		console.log('Partial solution.')
+	}
 	
 	//util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
 }))
 
-// Get the all blockshares in the pool
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xaddress
-app.get('/blockshares', asyncMiddleware( async (request, response, next) => {
-	let docs = await dbo.collection('shares').aggregate(
-	   [	      
-	      {
-	        $group : {
-	           _id : {origin: "$origin", challengeNumber: "$challengeNumber"},
-	           blockshares: { $sum: "$difficulty" }
-	        }
-	      }
-	   ]
-	).toArray()
-    response.json(docs)
-}))
-
 // Get the blockshares share for a challengeNumber
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xchallengeNumber
 app.get('/blockshares/:challengeNumber', asyncMiddleware( async (request, response, next) => {
-	let docs = await dbo.collection('shares').aggregate(
-	   [
-	      {
-	   		$match: {
-	   		   'challengeNumber': { $eq: request.params.challengeNumber }
-     		} 
-     	  },
-	      {
-	        $group : {
-	           _id : {origin: "$origin", challengeNumber: "$challengeNumber"},
-	           blockshares: { $sum: "$difficulty" }
-	        }
-	      }
-	   ]
-	).toArray()
+	let docs = await util.blockShares(dbo, request.params.challengeNumber)
     response.json(docs)
 }))
 
