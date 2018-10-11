@@ -97,42 +97,18 @@ app.get('/', function (request, response) {
 })
 
 // View all submission transactions for an account share
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/mint/0xaddress
-app.get('/mint/account/:account', asyncMiddleware( async (request, response, next) => {
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/tx/account/0xaddress
+app.get('/tx/account/:account', asyncMiddleware( async (request, response, next) => {
   let res = await dbo.collection('transactions').find({ origin: request.params.account }).toArray()
   response.json(res)
 }))
 
 // Get a single mint transaction by Ethereum txn hash
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/mint/0xaddress
-app.get('/mint/tx/:txnId', asyncMiddleware( async (request, response, next) => {
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/tx/0xtxId
+app.get('/tx/:txnId', asyncMiddleware( async (request, response, next) => {
   let res = await dbo.collection('transactions').find({ txnId: request.params.txnId }).toArray()
   response.json(res)
 
-}))
-
-// ERC918 - Mineable Mint Packet Metadata
-// submit a solution mint packet to be processed
-// curl -d '{"nonce": "0xnonce", "origin": "0xaddress", "signature": "0xsignature"}' -H "Content-Type: application/json" http://127.0.0.1:3000/mint/0x...
-app.post('/mint/:contract', asyncMiddleware( async (request, response, next) => {
-	var pRequest = request.body
-	var packet = {}
-	packet.request = pRequest
-    // attach additional metadata to the packet
-    packet.origin = pRequest.origin
-    packet.timestamp = new Date()
-
-    packet.delegate = this.poolAccount.address
-    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, pRequest.origin, pRequest.signature, request.params.contract) ).transactionHash
-    packet.hashrate = await util.accountHashrate( dbo, pRequest.origin )
-    packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
-	let res = await dbo.collection('transactions').insertOne(packet)
-
-	let payouts = await util.snapPayout(dbo, packet.txnId, request.params.contract, mineable)
-	if(payouts.length > 0) { 
-		await dbo.collection('payouts').insertMany(payouts)
-	}
-	response.json(packet)
 }))
 
 // View all payouts given out by this pool
@@ -142,8 +118,8 @@ app.get('/payouts', asyncMiddleware( async (request, response, next) => {
     response.json(res)
 }))
 
-// View all payouts given out by this pool
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/payouts/0xaccount..
+// View all payouts given to this account
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/payouts/0xaccount
 app.get('/payouts/:account', asyncMiddleware( async (request, response, next) => {
 	let res = await dbo.collection('payouts').find({ account: request.params.account }).toArray()
     response.json(res)
@@ -155,11 +131,11 @@ app.get('/test/snapPayout', asyncMiddleware( async (request, response, next) => 
 }))
 
 // request a share to solve
-// curl -d '{"origin":"0xaddress", "contract": "0xcontract"}', "vardiff": 65536 -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
+// curl -d '{"origin":"0xaddress", "contract": "0xcontract", "vardiff": 65536}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 
-	if(!request.body.contract) {
-		throw 'packet did not request contract: ' + request.body
+	if(!request.body.contract || !request.body.origin) {
+		throw 'Invalid reqest body: ' + request.body
 	}
 	
 	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
@@ -232,12 +208,19 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		if(payouts.length > 0) { 
 			await dbo.collection('payouts').insertMany(payouts)
 		}
-		// response.json(packet)
+		
+		// archive the submitted shares
+		let allShares = await dbo.collection('shares').find({challengeNumber: p.challengeNumber}).toArray()
+		let pin = ( await util.ipfsPin(allShares) ).Hash
+		await dbo.collection('archive').insertOne({ type: 'shares', challengeNumber: p.challengeNumber, ipfsHash: pin })
+		// clear out all submitted shares
+		await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
+
 	} else {
 		console.log('Partial solution.')
 	}
 	
-	//util.pruneSingle(dbo, pRequest.origin)
+	// util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
 }))
 
@@ -267,7 +250,7 @@ app.get('/hashrate/:account', asyncMiddleware( async (request, response, next) =
 // Get the hashrate for the entire pool
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/hashrate
 app.get('/pool/hashrate', asyncMiddleware( async (request, response, next) => {
-    const validTimeAgo = Date.now() - process.env.VALID_MILLISECONDS_WINDOW
+    const validTimeAgo = Date.now() - process.env.VALID_MINUTES_WINDOW * 60 * 1000
 	
 	let docs = await dbo.collection('shares').aggregate(
 	   [
