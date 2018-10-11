@@ -189,6 +189,17 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
 	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
+	// share counter
+	let counter = await dbo.collection('sharecount').findOne({origin: p.origin, challengeNumber: p.challengeNumber})
+	if( !counter ) {
+		counter = {}
+		counter.origin = p.origin
+		counter.challengeNumber = p.challengeNumber
+		counter.count = 0
+	}
+	counter.count += parseInt(p.difficulty)
+	await dbo.collection('sharecount').findOneAndUpdate( {_id: counter._id}, { $set: counter }, {upsert: true} )
+
 	// check if the solution solves a token block
 	if( util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce) === true ) {
 		console.log('-- Found block solution -- ')
