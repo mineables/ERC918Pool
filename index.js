@@ -201,7 +201,8 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	await dbo.collection('sharecount').findOneAndUpdate( {_id: counter._id}, { $set: counter }, {upsert: true} )
 
 	// check if the solution solves a token block
-	if( util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce) === true ) {
+	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
+	if( validBlock === true ) {
 		console.log('-- Found block solution -- ')
 		var packet = {}
 		packet.request = pRequest
