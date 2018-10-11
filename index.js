@@ -201,7 +201,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	}
 
 	// validate the share
-	if(!util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty)) {
+	if( util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty) !== true ) {
 		throw 'Invalid nonce submitted'
 	}
 
@@ -214,7 +214,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
 	// check if the solution solves a token block
-	if( util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce) ) {
+	if( util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce) === true ) {
 		console.log('-- Found block solution -- ')
 		var packet = {}
 		packet.request = pRequest
