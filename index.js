@@ -196,9 +196,12 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		counter._id = p.origin
 		counter.challengeNumber = p.challengeNumber
 		counter.count = 0
+		counter.count += parseInt(p.difficulty)
+		
+	} else {
+		counter.count += parseInt(p.difficulty)
+		await dbo.collection('sharecount').findOneAndUpdate( {_id: p.origin, challengeNumber: p.challengeNumber}, { $set: counter }, {upsert: true} )
 	}
-	counter.count += parseInt(p.difficulty)
-	await dbo.collection('sharecount').findOneAndUpdate( {_id: counter._id}, { $set: counter }, {upsert: true} )
 
 	// check if the solution solves a token block
 	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
