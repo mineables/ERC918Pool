@@ -175,8 +175,6 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 		packet.difficulty = parseInt(process.env.DEFAULT_SHARE_DIFFICULTY)
 	}
 
-	packet.difficulty = web3.utils.randomHex(32)
-
 	packet.challengeNumber = await mineable.getChallengeNumber(packet.request.contract)
 	packet.start = new Date().getTime()
 	packet.finish = null
