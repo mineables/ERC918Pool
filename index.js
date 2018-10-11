@@ -220,20 +220,19 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		console.log('Partial solution.')
 	}
 	
-	// util.pruneSingle(dbo, pRequest.origin)
 	response.json(p)
 }))
 
 // Get the blockshares share for a challengeNumber
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xchallengeNumber
-app.get('/blockshares/:challengeNumber', asyncMiddleware( async (request, response, next) => {
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/challenge/0xchallengeNumber
+app.get('/blockshares/challenge/:challengeNumber', asyncMiddleware( async (request, response, next) => {
 	let docs = await util.blockShares(dbo, request.params.challengeNumber)
     response.json(docs)
 }))
 
 // Get the hashrate share for an account
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/shares/0xaddress
-app.get('/shares/:account', asyncMiddleware( async (request, response, next) => {
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/account/0xaddress
+app.get('/blockshares/account/:account', asyncMiddleware( async (request, response, next) => {
 	let res = await dbo.collection('shares').find({ origin: request.params.account }).toArray()
     response.json(res)
 }))
@@ -249,7 +248,7 @@ app.get('/hashrate/:account', asyncMiddleware( async (request, response, next) =
 
 // Get the hashrate for the entire pool
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/hashrate
-app.get('/pool/hashrate', asyncMiddleware( async (request, response, next) => {
+app.get('/hashrate', asyncMiddleware( async (request, response, next) => {
     const validTimeAgo = Date.now() - process.env.VALID_MINUTES_WINDOW * 60 * 1000
 	
 	let docs = await dbo.collection('shares').aggregate(
@@ -275,10 +274,10 @@ app.get('/pool/hashrate', asyncMiddleware( async (request, response, next) => {
 	response.json(hashrateResponse)
 }))
 
-// list all of the pool's shares
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/pool/shares
-app.get('/pool/shares', asyncMiddleware( async (request, response, next) => {
-	response.json( await util.poolShares(dbo) )
+// list archive
+app.get('/archive', asyncMiddleware( async (request, response, next) => {
+	let docs = await dbo.collection('archive').find({}).toArray()
+    response.json(docs)
 }))
 
 // admin functions
@@ -301,6 +300,6 @@ admin.get('/payout/:account', asyncMiddleware( async (request, response, next) =
 // Get the blockshares share for a challengeNumber
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/0xchallengeNumber
 admin.get('/blockshares', asyncMiddleware( async (request, response, next) => {
-	let docs = await dbo.collection('shares').find({ }).toArray()
+	let docs = await dbo.collection('shares').find({}).toArray()
     response.json(docs)
 }))
