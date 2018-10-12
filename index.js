@@ -264,7 +264,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		
 	} finally {
 		// now delete the share, since its been acounted for
-		await dbo.collection('shares').deleteOne( { _id: ObjectId(packet.request.uid) } )
+		await dbo.collection('shares').deleteOne( { _id: ObjectId(request.body.uid) } )
 		response.json(p)
 	}
 	
