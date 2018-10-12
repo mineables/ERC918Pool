@@ -159,15 +159,7 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	}
 	
 	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
-	/*
-	if (p) {
-		// only allow one share at a time per user per contract to be mined
-		console.log('only allowed to process one active share per account per contract')
-		response.json(p)
-		return
-	}
-	*/
-
+	
 	var pRequest = request.body
 	var packet = {}
 	packet.request = pRequest
@@ -211,7 +203,6 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		var seconds = Math.round( dif / 1000 )
 		p.seconds = seconds > 0 ? seconds : 1
 		p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-		// await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
 		// share counter
 		let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
@@ -229,8 +220,8 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 
 		// check if the solution solves a token block
 		let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
-		if( validBlock === true ) {
-			console.log('-- Found block solution -- ')
+		if ( validBlock === true ) {
+			console.log('-- Found block -- ')
 			var packet = {}
 			packet.request = pRequest
 		    // attach additional metadata to the packet
@@ -239,8 +230,6 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 
 		    packet.delegate = this.poolAccount.address
 		    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
-		    packet.hashrate = await util.accountHashrate( dbo, pRequest.origin )
-		    // packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
 			let res = await dbo.collection('transactions').insertOne(packet)
 
 			let payouts = await util.snapPayout(dbo, packet.txnId, p.contract, mineable, p.challengeNumber)
@@ -255,14 +244,10 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			// clear out all submitted shares
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 
-		} else {
-			console.log('Partial solution')
-			console.log( JSON.stringify(pRequest) )
 		}
 		
 	} finally {
 		// now delete the share, since its been acounted for
-		console.log('deleting share record: ' + p._id)
 		await dbo.collection('shares').deleteOne( { _id: ObjectId(packet.request.uid) } )
 		response.json(p)
 	}
