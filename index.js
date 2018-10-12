@@ -216,12 +216,12 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			counter._id = {origin: p.origin, challengeNumber: p.challengeNumber}
 			counter.challengeNumber = p.challengeNumber
 			counter.count = parseInt(p.difficulty)
-			counter.vcount = util.getVirtualDifficulty(p.origin, p.contract)
+			counter.vcount = await util.getVirtualDifficulty(p.origin, p.contract)
 			await dbo.collection('sharecount').insertOne(counter)
 		} else {
 			counter.count += parseInt(p.difficulty)
 			// note virtual diff is not accumulated, since it is based on block time
-			counter.vcount = getVirtualDifficulty(p.origin, p.contract)
+			counter.vcount = await util.getVirtualDifficulty(p.origin, p.contract)
 			await dbo.collection('sharecount').findOneAndUpdate( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} }, { $set: counter }, { upsert: true } )
 		}
 
