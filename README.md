@@ -1,5 +1,5 @@
 # ERC918Pool
-A minimalist, REST based pool software for ERC918 tokens.
+A minimalist, REST based pool service for ERC918 tokens on the Mineables network. The payout system follows a simple proportional distribution that tallies an account's total difficulty of submitted shares per token block.
 
 # Configuration
 
