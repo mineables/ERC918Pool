@@ -190,8 +190,9 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 
 	var p
 	try {
-		var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce.trim()})
-		console.log(request.body.nonce, found)
+		var nonceNum = web3.utils.hexToNumber(request.body.nonce)
+		var found = await dbo.collection('submitted').findOne({'nonce': nonceNum})
+		console.log(nonceNum, found)
 		if(found) {
 			throw 'solution has already been submitted'
 		}
@@ -259,7 +260,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			// clear out all submitted shares
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 		}
-		await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
+		await dbo.collection('submitted').insertOne({'nonce': nonceNum})
 		
 	} finally {
 		// now delete the share, since its been acounted for
