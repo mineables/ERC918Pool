@@ -34,6 +34,7 @@ POOL_FEE_PCT=6
 PORT=3000
 VALID_MINUTES_WINDOW=10
 PAYOUTS_CRON=0 8 * * *
+MINIMUM_PAYOUT_TOKENS=5
 TEST_MODE=false
 
 # Pool web admin, user is always 'admin'
