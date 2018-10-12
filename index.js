@@ -207,7 +207,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	var seconds = Math.round( dif / 1000 )
 	p.seconds = seconds > 0 ? seconds : 1
 	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-	await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
+	// await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
 
 	// share counter
 	let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
@@ -257,6 +257,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	}
 
 	// now delete the share, since its been acounted for
+	console.log('deleting share record: ' + p._id)
 	await dbo.collection('shares').deleteOne({_id: p._id})
 	
 	response.json(p)
