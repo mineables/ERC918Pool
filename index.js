@@ -185,13 +185,9 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 // submit a solved share
 // curl -d '{ "uid": "theUUID", "nonce":"0xdeadbeef", "origin": "0xaddress", "signature": "0xsig"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
-
-
-
 	var p
 	try {
 		var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce.trim()})
-		console.log(request.body.nonce.trim(), found)
 		if(found) {
 			throw 'solution has already been submitted'
 		}
