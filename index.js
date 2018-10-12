@@ -191,7 +191,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	var p
 	try {
 		var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce})
-		console.log(found)
+		console.log(request.body.nonce, found)
 		if(found) {
 			throw 'solution has already been submitted'
 		}
