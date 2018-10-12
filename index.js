@@ -159,12 +159,14 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	}
 	
 	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
+	/*
 	if (p) {
 		// only allow one share at a time per user per contract to be mined
 		console.log('only allowed to process one active share per account per contract')
 		response.json(p)
 		return
 	}
+	*/
 
 	var pRequest = request.body
 	var packet = {}
@@ -184,83 +186,88 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 }))
 
 // submit a solved share
-// curl -d '{"origin":"0xaddress","challengeNumber":"0xchallengeNumber","nonce":"0xdeadbeef","contract": "0xcontract"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
+// curl -d '{ "uid": "theUUID", "nonce":"0xdeadbeef", "origin": "0xaddress", "signature": "0xsig"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
-  	var pRequest = request.body
-	var packet = {}
-	packet.request = pRequest
-	packet.origin = pRequest.origin
-	// let docs = await dbo.collection('shares').find(ObjectId(packet.request.uid)).toArray()
-	let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
-	if( !p ) {
-		throw 'Could not find share'
-	}
-
-	// validate the share
-	if( util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty) !== true ) {
-		throw 'Invalid nonce submitted'
-	}
-
-	p.status = VALID_STATUS
-	p.finish = new Date().getTime()
-	var dif = p.finish - p.start
-	var seconds = Math.round( dif / 1000 )
-	p.seconds = seconds > 0 ? seconds : 1
-	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-	// await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
-
-	// share counter
-	let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
-	if( !counter ) {
-		counter = {}
-		counter._id = {origin: p.origin, challengeNumber: p.challengeNumber}
-		counter.challengeNumber = p.challengeNumber
-		counter.count = 0
-		counter.count += parseInt(p.difficulty)
-		await dbo.collection('sharecount').insertOne(counter)
-	} else {
-		counter.count += parseInt(p.difficulty)
-		await dbo.collection('sharecount').findOneAndUpdate( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} }, { $set: counter }, {upsert: true} )
-	}
-
-	// check if the solution solves a token block
-	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
-	if( validBlock === true ) {
-		console.log('-- Found block solution -- ')
+	var p
+	try {
+	  	var pRequest = request.body
 		var packet = {}
 		packet.request = pRequest
-	    // attach additional metadata to the packet
-	    packet.origin = pRequest.origin
-	    packet.timestamp = new Date()
+		packet.origin = pRequest.origin
+		p = await dbo.collection('shares').findOne(ObjectId(packet.request.uid))
+		// let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
+		if( !p ) {
+			throw 'Could not find share with uid: ' + packet.request.uid
+		}
 
-	    packet.delegate = this.poolAccount.address
-	    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
-	    packet.hashrate = await util.accountHashrate( dbo, pRequest.origin )
-	    // packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
-		let res = await dbo.collection('transactions').insertOne(packet)
+		// validate the share
+		if( util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty) !== true ) {
+			throw 'Invalid nonce submitted'
+		}
 
-		let payouts = await util.snapPayout(dbo, packet.txnId, p.contract, mineable, p.challengeNumber)
-		if(payouts.length > 0) { 
-			await dbo.collection('payouts').insertMany(payouts)
+		p.status = VALID_STATUS
+		p.finish = new Date().getTime()
+		var dif = p.finish - p.start
+		var seconds = Math.round( dif / 1000 )
+		p.seconds = seconds > 0 ? seconds : 1
+		p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
+		// await dbo.collection('shares').findOneAndUpdate( {_id: p._id}, { $set: p }, {upsert: true})
+
+		// share counter
+		let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
+		if( !counter ) {
+			counter = {}
+			counter._id = {origin: p.origin, challengeNumber: p.challengeNumber}
+			counter.challengeNumber = p.challengeNumber
+			counter.count = 0
+			counter.count += parseInt(p.difficulty)
+			await dbo.collection('sharecount').insertOne(counter)
+		} else {
+			counter.count += parseInt(p.difficulty)
+			await dbo.collection('sharecount').findOneAndUpdate( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} }, { $set: counter }, {upsert: true} )
+		}
+
+		// check if the solution solves a token block
+		let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
+		if( validBlock === true ) {
+			console.log('-- Found block solution -- ')
+			var packet = {}
+			packet.request = pRequest
+		    // attach additional metadata to the packet
+		    packet.origin = pRequest.origin
+		    packet.timestamp = new Date()
+
+		    packet.delegate = this.poolAccount.address
+		    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
+		    packet.hashrate = await util.accountHashrate( dbo, pRequest.origin )
+		    // packet.ipfsPin = ( await util.ipfsPin(packet) ).Hash
+			let res = await dbo.collection('transactions').insertOne(packet)
+
+			let payouts = await util.snapPayout(dbo, packet.txnId, p.contract, mineable, p.challengeNumber)
+			if(payouts.length > 0) { 
+				await dbo.collection('payouts').insertMany(payouts)
+			}
+			
+			// archive the submitted shares
+			let allShares = await dbo.collection('shares').find({challengeNumber: p.challengeNumber}).toArray()
+			let pin = ( await util.ipfsPin(allShares) ).Hash
+			await dbo.collection('archive').insertOne({ type: 'shares', challengeNumber: p.challengeNumber, ipfsHash: pin })
+			// clear out all submitted shares
+			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
+
+		} else {
+			console.log('Partial solution')
+			console.log( JSON.stringify(pRequest) )
 		}
 		
-		// archive the submitted shares
-		let allShares = await dbo.collection('shares').find({challengeNumber: p.challengeNumber}).toArray()
-		let pin = ( await util.ipfsPin(allShares) ).Hash
-		await dbo.collection('archive').insertOne({ type: 'shares', challengeNumber: p.challengeNumber, ipfsHash: pin })
-		// clear out all submitted shares
-		await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
-
-	} else {
-		console.log('Partial solution')
-		console.log( JSON.stringify(pRequest) )
+	} finally {
+		// now delete the share, since its been acounted for
+		console.log('deleting share record: ' + p._id)
+		await dbo.collection('shares').deleteOne( { _id: ObjectId(packet.request.uid) } )
+		response.json(p)
 	}
-
-	// now delete the share, since its been acounted for
-	console.log('deleting share record: ' + p._id)
-	await dbo.collection('shares').deleteOne({_id: p._id})
 	
-	response.json(p)
+	
 }))
 
 // Get the hashrate share for an account
