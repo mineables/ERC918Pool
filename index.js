@@ -258,7 +258,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			// clear out all submitted shares
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 		}
-		await dbo.collection('submitted').insertOne({'nonce', request.body.nonce})
+		await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
 		
 	} finally {
 		// now delete the share, since its been acounted for
