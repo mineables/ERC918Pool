@@ -96,6 +96,31 @@ app.get('/', function (request, response) {
   response.json(util.config())
 })
 
+// Account summary
+// curl -H "Content-Type: application/json" http://127.0.0.1:3000/account/0xaddress
+app.get('/account/:account', asyncMiddleware( async (request, response, next) => {
+	let results = {}
+	let docs = await dbo.collection('payouts').aggregate(
+	[
+	    {
+		  $match: {
+			   account: { $eq: request.params.account },
+			   payoutTxn: { $exists: false }
+		  } 
+		},
+	    {
+		  $group : {
+		       _id : { account: '$account', contract: '$contract' },
+		       unpaid: { $sum: '$payout' }
+		  }
+	  	}
+	]
+	).toArray()
+	response.json(docs)
+
+}))
+
+
 // View all submission transactions for an account share
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/tx/account/0xaddress
 app.get('/tx/account/:account', asyncMiddleware( async (request, response, next) => {
