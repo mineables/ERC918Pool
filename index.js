@@ -302,7 +302,7 @@ admin.get('/prune', asyncMiddleware( async (request, response, next) => {
 
 // admin payout single
 admin.get('/payout/:account', asyncMiddleware( async (request, response, next) => {
-	util.processPayoutSingle(dbo, this.poolAccount, mineable, request.params.account)
+	await util.processPayoutSingle(dbo, this.poolAccount, mineable, request.params.account)
     response.json('done')
 }))
 
