@@ -185,8 +185,15 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 // submit a solved share
 // curl -d '{ "uid": "theUUID", "nonce":"0xdeadbeef", "origin": "0xaddress", "signature": "0xsig"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
+
+
+
 	var p
 	try {
+		var found = await dbo.collection('submitted').findOne({'nonce', request.body.nonce})
+		if(found) {
+			throw 'solution has already been submitted'
+		}
 	  	var pRequest = request.body
 		var packet = {}
 		packet.request = pRequest
@@ -250,8 +257,8 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			await dbo.collection('archive').insertOne({ type: 'shares', challengeNumber: p.challengeNumber, ipfsHash: pin })
 			// clear out all submitted shares
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
-
 		}
+		await dbo.collection('submitted').insertOne({'nonce', request.body.nonce})
 		
 	} finally {
 		// now delete the share, since its been acounted for
