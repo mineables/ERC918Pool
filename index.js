@@ -42,7 +42,7 @@ app.listen(process.env.PORT, async() => {
     // initialize objects
     web3.setProvider(process.env.ETHEREUM_PROVIDER_URL)
     util.init(web3)
-	await mineable.init(web3)
+	
 	let res = await vault.init(web3)
 	if(res == false) {
 		process.exit()
@@ -50,6 +50,8 @@ app.listen(process.env.PORT, async() => {
 	this.poolAccount = res.account
 
 	console.log('Pool address: ' + this.poolAccount.address)
+
+	await mineable.init(web3, this.poolAccount)
 
 	var url = res.url
 
@@ -158,7 +160,6 @@ app.get('/payouts/:account', asyncMiddleware( async (request, response, next) =>
 // request a share to solve
 // curl -d '{"origin":"0xaddress", "contract": "0xcontract", "vardiff": 65536}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/request
 app.post('/share/request', asyncMiddleware( async (request, response, next) => {
-
 	if(!request.body.contract || !request.body.origin) {
 		throw 'Invalid reqest body: ' + request.body
 	}
