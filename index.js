@@ -171,10 +171,10 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	packet.request = pRequest
 	packet.origin = pRequest.origin
 	packet.contract = request.body.contract
-	if(request.body.vardiff && request.body.vardiff > process.env.DEFAULT_SHARE_DIFFICULTY) {
+	if(request.body.vardiff && request.body.vardiff > process.env.MINIMUM_SHARE_DIFFICULTY) {
 		packet.difficulty = parseInt(request.body.vardiff)
 	} else {
-		packet.difficulty = parseInt(process.env.DEFAULT_SHARE_DIFFICULTY)
+		packet.difficulty = parseInt(process.env.MINIMUM_SHARE_DIFFICULTY)
 	}
 	packet.challengeNumber = await mineable.getChallengeNumber(packet.request.contract)
 	packet.start = new Date().getTime()
