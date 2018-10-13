@@ -20,6 +20,7 @@ var web3 = new Web3()
 const util = require('./lib/util')
 const vault = require('./lib/vault')
 const mineable = require('./lib/mineable-interface')
+const bitcoin = require('./lib/0xbitcoin-interface')
 
 const INVALID_STATUS = 'INVALID'
 const VALID_STATUS = 'VALID'
@@ -38,6 +39,9 @@ app.listen(process.env.PORT, async() => {
 	console.log(process.env.TITLE + ' version ' + process.env.VERSION)
     // force login/setup
     title()
+
+    // initialize 0xbitcoin
+    await bitcoin.init()
     
     // initialize objects
     web3.setProvider(process.env.ETHEREUM_PROVIDER_URL)
@@ -186,9 +190,16 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 // submit a solved share
 // curl -d '{ "uid": "theUUID", "nonce":"0xdeadbeef", "origin": "0xaddress", "signature": "0xsig"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
+
+	// merge with 0xbitcoin
+	let bitcoinMerge = await bitcoin.validate(request.body.origin, request.body.nonce)
+	if (bitcoinMerge === true){
+		console.log('0xBitcoin solution found!!')
+	}
+
 	var p
 	try {
-		var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce.trim()})
+		var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce})
 		if(found) {
 			throw 'solution has already been submitted'
 		}
@@ -256,7 +267,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			// clear out all submitted shares
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 		}
-		await dbo.collection('submitted').insertOne({'nonce': request.body.nonce.trim()})
+		await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
 		
 	} finally {
 		// now delete the share, since its been acounted for
