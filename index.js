@@ -131,22 +131,6 @@ app.get('/account/:account', asyncMiddleware( async (request, response, next) =>
 
 }))
 
-
-// View all submission transactions for an account share
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/tx/account/0xaddress
-app.get('/tx/account/:account', asyncMiddleware( async (request, response, next) => {
-  let res = await dbo.collection('transactions').find({ origin: request.params.account }).toArray()
-  response.json(res)
-}))
-
-// Get a single mint transaction by Ethereum txn hash
-// curl -H "Content-Type: application/json" http://127.0.0.1:3000/tx/0xtxId
-app.get('/tx/:txnId', asyncMiddleware( async (request, response, next) => {
-  let res = await dbo.collection('transactions').find({ txnId: request.params.txnId }).toArray()
-  response.json(res)
-
-}))
-
 // View all payouts given out by this pool
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/payouts
 app.get('/payouts', asyncMiddleware( async (request, response, next) => {
@@ -245,26 +229,12 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
 		if ( validBlock === true ) {
 			console.log('-- Found block -- ')
-			var packet = {}
-			packet.request = pRequest
-		    // attach additional metadata to the packet
-		    packet.origin = pRequest.origin
-		    packet.timestamp = new Date()
-
-		    packet.delegate = this.poolAccount.address
-		    packet.txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
-			let res = await dbo.collection('transactions').insertOne(packet)
-
-			let payouts = await util.snapPayout(dbo, packet.txnId, p.contract, mineable, p.challengeNumber)
+		    let txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
+			let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
 			if(payouts.length > 0) { 
 				await dbo.collection('payouts').insertMany(payouts)
 			}
-			
-			// archive the submitted shares
-			let allShares = await dbo.collection('shares').find({challengeNumber: p.challengeNumber}).toArray()
-			let pin = ( await util.ipfsPin(allShares) ).Hash
-			await dbo.collection('archive').insertOne({ type: 'shares', challengeNumber: p.challengeNumber, ipfsHash: pin })
-			// clear out all submitted shares
+			// clear out all submitted shares for challenge
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 		}
 		await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
