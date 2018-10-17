@@ -96,11 +96,6 @@ const asyncMiddleware = fn =>
       .catch(next);
 }
 
-app.get('/vrig', function (request, response) {
-  // response.json(process.env.TITLE + ' version ' + process.env.VERSION)
-  response.json(util.getVirtualHashRate('0xE953892F8E4Ce44c0e4C8BAe0a131d2183b52D80','0xc3255754e8f843ae27505e48bdc5d76c655a5af1'))
-})
-
 // displays title and information about the service
 app.get('/', function (request, response) {
   // response.json(process.env.TITLE + ' version ' + process.env.VERSION)
