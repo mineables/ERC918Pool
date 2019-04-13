@@ -150,6 +150,11 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 	packet.request = pRequest
 	packet.origin = pRequest.origin
 	packet.contract = request.body.contract
+
+	if(request.body.contract != process.env.TARGET_CONTRACT) {
+		throw 'Invalid target contract, this pool mines against: ' + process.env.TARGET_CONTRACT
+	}
+
 	if(request.body.vardiff && request.body.vardiff > process.env.MINIMUM_SHARE_DIFFICULTY) {
 		packet.difficulty = parseInt(request.body.vardiff)
 	} else {
@@ -166,69 +171,68 @@ app.post('/share/request', asyncMiddleware( async (request, response, next) => {
 // curl -d '{ "uid": "theUUID", "nonce":"0xdeadbeef", "origin": "0xaddress", "signature": "0xsig"}' -H "Content-Type: application/json" http://127.0.0.1:3000/share/submit
 app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 
-	var p
-	try {
-		var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce})
-		if(found) {
-			throw 'solution has already been submitted'
-		}
-	  	var pRequest = request.body
-		var packet = {}
-		packet.request = pRequest
-		packet.origin = pRequest.origin
-		p = await dbo.collection('shares').findOne(ObjectId(packet.request.uid))
-		// let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
-		if( !p ) {
-			throw 'Could not find share with uid: ' + packet.request.uid
-		}
-
-		// validate the share
-		if( util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty) !== true ) {
-			throw 'Invalid nonce submitted'
-		}
-
-		p.status = VALID_STATUS
-		p.finish = new Date().getTime()
-		var dif = p.finish - p.start
-		var seconds = Math.round( dif / 1000 )
-		p.seconds = seconds > 0 ? seconds : 1
-		p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
-
-		// share counter
-		let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
-		if( !counter ) {
-			counter = {}
-			counter._id = {origin: p.origin, challengeNumber: p.challengeNumber}
-			counter.challengeNumber = p.challengeNumber
-			counter.count = parseInt(p.difficulty)
-			counter.vcount = await util.getVirtualDifficulty(p.origin, p.contract)
-			await dbo.collection('sharecount').insertOne(counter)
-		} else {
-			counter.count += parseInt(p.difficulty)
-			// note virtual diff is not accumulated, since it is based on block time
-			counter.vcount = await util.getVirtualDifficulty(p.origin, p.contract)
-			await dbo.collection('sharecount').findOneAndUpdate( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} }, { $set: counter }, { upsert: true } )
-		}
-
-		// check if the solution solves a token block
-		let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
-		if ( validBlock === true ) {
-			console.log('-- Found block -- ')
-		    let txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
-			let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
-			if(payouts.length > 0) { 
-				await dbo.collection('payouts').insertMany(payouts)
-			}
-			// clear out all submitted shares for challenge
-			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
-		}
-		await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
-		
-	} finally {
-		// now delete the share, since its been acounted for
-		await dbo.collection('shares').deleteOne( { _id: ObjectId(request.body.uid) } )
-		response.json(p)
+	var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce})
+	if(found) {
+		throw 'solution has already been submitted'
 	}
+  	var pRequest = request.body
+	var packet = {}
+	packet.request = pRequest
+	packet.origin = pRequest.origin
+	var p = await dbo.collection('shares').findOne(ObjectId(packet.request.uid))
+	// let p = await dbo.collection('shares').findOne({origin: request.body.origin, contract: request.body.contract, finish:{$eq: null}})
+	if( !p ) {
+		throw 'Could not find share with uid: ' + packet.request.uid
+	}
+
+	if(p.contract != process.env.TARGET_CONTRACT) {
+		throw 'Invalid target contract, this pool mines against: ' + process.env.TARGET_CONTRACT
+	}
+	// validate the share
+	if( util.validate(p.challengeNumber, pRequest.origin, pRequest.nonce, p.difficulty) !== true ) {
+		throw 'Invalid nonce submitted'
+	}
+
+	p.status = VALID_STATUS
+	p.finish = new Date().getTime()
+	var dif = p.finish - p.start
+	var seconds = Math.round( dif / 1000 )
+	p.seconds = seconds > 0 ? seconds : 1
+	p.hashrate = util.estimatedShareHashrate(p.difficulty, p.seconds)
+
+	// share counter
+	let counter = await dbo.collection('sharecount').findOne( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} } )
+	if( !counter ) {
+		counter = {}
+		counter._id = {origin: p.origin, challengeNumber: p.challengeNumber}
+		counter.challengeNumber = p.challengeNumber
+		counter.count = parseInt(p.difficulty)
+		counter.vcount = await util.getVirtualDifficulty(p.origin, p.contract)
+		await dbo.collection('sharecount').insertOne(counter)
+	} else {
+		counter.count += parseInt(p.difficulty)
+		// note virtual diff is not accumulated, since it is based on block time
+		counter.vcount = await util.getVirtualDifficulty(p.origin, p.contract)
+		await dbo.collection('sharecount').findOneAndUpdate( {_id: { origin: p.origin, challengeNumber: p.challengeNumber} }, { $set: counter }, { upsert: true } )
+	}
+
+	// check if the solution solves a token block
+	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
+	if ( validBlock === true ) {
+		console.log('-- Found block -- ')
+	    let txnId = ( await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract) ).transactionHash
+		let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
+		if(payouts.length > 0) { 
+			await dbo.collection('payouts').insertMany(payouts)
+		}
+		// clear out all submitted shares for challenge
+		await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
+	}
+	await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
+	// now delete the share, since its been acounted for
+	await dbo.collection('shares').deleteOne( { _id: ObjectId(request.body.uid) } )
+	response.json(p)
+
 	
 	
 }))
