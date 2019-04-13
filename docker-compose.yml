@@ -1,22 +1,21 @@
 version: '3'
 services:
+
   mongo:
     image: 'mongo:latest'
-    ports:
-      - '27017:27017'
+    
     volumes:
-      - 'mongo:/data/db'
+      - ./data:/data/db
+    ports:
+      - '27017'
 
   app:
     command: node index.js
     env_file: 
       - .env
     depends_on:
-      - 'mongo'
+      - mongo
     restart: always
     build: .
     ports:
-      - '3000:3000'
-
-volumes:
-  mongo:
+      - '3000:80'
