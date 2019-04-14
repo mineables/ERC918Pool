@@ -144,9 +144,12 @@ app.get('/account/:account', asyncMiddleware( async (request, response, next) =>
 	).toArray()
 
 	results = totalResults
-	if(unpaidResults) {
+	if(unpaidResults[0]) {
 		results[0].paid = total - unpaidResults[0].unpaid
 		results[0].unpaid = unpaidResults[0].unpaid
+	} else {
+		results[0].paid = total
+		results[0].unpaid = 0
 	}
 
 	response.json(results)
