@@ -48,11 +48,11 @@ app.listen(process.env.PORT, async() => {
 	if(res == false) {
 		process.exit()
 	}	
-	this.poolAccount = res.account
+	poolAccount = res.account
 
-	console.log('Pool address: ' + this.poolAccount.address)
+	console.log('Pool address: ' + poolAccount.address)
 
-	await mineable.init(web3, this.poolAccount)
+	await mineable.init(web3, poolAccount)
 
 	var url = res.url
 
@@ -255,7 +255,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	if ( validBlock === true ) {
 		try {
 			console.log('-- Found block -- ')
-			let dmResults = await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
+			let dmResults = await mineable.delegatedMint( poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
 			console.log('dmResults: ' + dmResults)
 		    let txnId = dmResults.transactionHash
 			let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
@@ -319,13 +319,13 @@ admin.get('/prune', asyncMiddleware( async (request, response, next) => {
 // admin payout all
 admin.get('/payout/all', asyncMiddleware( async (request, response, next) => {
 	console.log('Prcoessing payouts...')
-	util.processPayouts(dbo, this.poolAccount, mineable)
+	util.processPayouts(dbo, poolAccount, mineable)
 	console.log('Payouts complete.')
 }))
 
 // admin payout single
 admin.get('/payout/:account', asyncMiddleware( async (request, response, next) => {
-	await util.processPayoutSingle(dbo, this.poolAccount, mineable, request.params.account)
+	await util.processPayoutSingle(dbo, poolAccount, mineable, request.params.account)
     response.json('done')
 }))
 
