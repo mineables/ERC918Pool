@@ -42,21 +42,70 @@
 	    </v-toolbar>
 	    <v-content>
 	      <v-container fluid fill-height>
-	        <v-layout
-	          justify-center
+	        <v-layout row justify-center
 	          align-center>
 	          <v-flex text-xs-center>
+
+	          	<v-expansion-panel>
+			      <v-expansion-panel-content>
+			        <template v-slot:header>
+			          <div>Pool Settings</div>
+			        </template>
+			        <v-card>
+					<table class="table">
+		                <tr>
+		                  <td>Title</td>
+		                  <td><b>{{ settings.TITLE }}</b></td>
+		                </tr>
+
+		                <tr>
+		                  <td>Version</td>
+		                  <td><b>{{ settings.VERSION }}</b></td>
+		                </tr>
+		                <tr>
+		                  <td>Contract</td>
+		                  <td><b>{{ settings.TARGET_CONTRACT }}</b></td>
+		                </tr>
+		                <tr>
+		                  <td>Provider</td>
+		                  <td><b>{{ settings.ETHEREUM_PROVIDER_URL }}</b></td>
+		                </tr>
+		                <tr>
+		                  <td>Minimum Vardiff</td>
+		                  <td><b>{{ settings.MINIMUM_SHARE_DIFFICULTY }}</b></td>
+		                </tr>
+		                <tr>
+		                  <td>Pool Fee %</td>
+		                  <td><b>{{ settings.POOL_FEE_PCT }}</b></td>
+		                </tr>
+		                <tr>
+		                  <td>Payouts</td>
+		                  <td><b>{{ settings.PAYOUTS_CRON }}</b></td>
+		                </tr>
+		                <tr>
+		                  <td>Minimum Payout Amount</td>
+		                  <td><b>{{ settings.MINIMUM_PAYOUT_TOKENS }}</b></td>
+		                </tr>
+
+		               
+		              </table>
+
+			        </v-card>
+			      </v-expansion-panel-content>
+			    </v-expansion-panel>
 	           
+			   <br>
 	           <h1>Token Block Shares</h1>
 	           <br>
 			
 	           <h2>Total Shares: {{totalShares}}</h2>
 			    <h3>Current Challenge: <small>{{currentChallenge}}</small></h3>
 			    <br>
-	            <div >
+	            <div>
+					
 					<v-card>
 				      <v-card-title>
-				        Nutrition
+				        Shares
 				        <v-spacer></v-spacer>
 				        <v-text-field
 				          v-model="search"
@@ -127,7 +176,8 @@
 	        ],
 	        blockshares: [], 
 	        totalShares: 0,
-	        currentChallenge: ''
+	        currentChallenge: '',
+	        settings: {}
 		  },
 		  created: function () {
 		    // `this` points to the vm instance
@@ -136,7 +186,7 @@
 		  methods: {
 		    getUsers: function(){
 	            this.$http.get('/blockshares').then(function(response){
-	                this.blockshares = response.data;
+	                this.blockshares = response.data
 
 	                if(this.blockshares) {
 	                	this.blockshares.forEach(function(v) { 
@@ -148,17 +198,36 @@
 	                this.totalShares = response.data[0] ? response.data[0].totalBlockshares : 0
 	                this.currentChallenge = response.data[0] ? response.data[0].challengeNumber : 0
 	            }, function(error){
-	                console.log(error.statusText);
+	                console.log(error.statusText)
+	            });
+	        },
+	        getSettings: function() {
+	        	this.$http.get('/settings').then(function(response){
+	                this.settings = response.data
+
+	               
+	            }, function(error){
+	                console.log(error.statusText)
 	            });
 	        }
+
 		  },
     	  mounted: function () {
     	  	console.log('mounted')
-            this.getUsers();
+            this.getUsers()
+            this.getSettings()
           }
 		  
 	})
-
   </script>
+  <style>
+  	
+	table th, td {
+	  padding: 15px;
+	  text-align: left;
+	}
+
+  </style>
+
 </body>
 </html>
