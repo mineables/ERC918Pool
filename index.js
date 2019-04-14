@@ -223,7 +223,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
 	if ( validBlock === true ) {
 		console.log('-- Found block -- ')
-		let dmResults = await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
+		let dmResults = mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
 		console.log('dmResults: ' + dmResults)
 		dmResults = JSON.parse(dmResults)
 		console.log('dmResults2: ' + dmResults)
