@@ -222,7 +222,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	// check if the solution solves a token block
 	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
 	if ( validBlock === true ) {
-		try{
+		try {
 			console.log('-- Found block -- ')
 			let dmResults = await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
 			console.log('dmResults: ' + dmResults)
@@ -235,7 +235,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 			}
 			// clear out all submitted shares for challenge
 			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
-		catch(e){
+		} catch(e) {
 			console.log(e)
 		}
 	}
