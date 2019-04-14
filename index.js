@@ -16,7 +16,7 @@ const fs = require('fs')
 const mongodb = require('mongodb')
 const ObjectId = mongodb.ObjectId
 const Web3 = require('web3')
-var web3 = new Web3()
+var web3
 const util = require('./lib/util')
 const vault = require('./lib/vault')
 const mineable = require('./lib/mineable-interface')
@@ -40,7 +40,8 @@ app.listen(process.env.PORT, async() => {
     title()
     
     // initialize objects
-    web3.setProvider(process.env.ETHEREUM_PROVIDER_URL)
+    web3 = new Web3(process.env.ETHEREUM_PROVIDER_URL)
+    //web3.setProvider(process.env.ETHEREUM_PROVIDER_URL)
     util.init(web3)
 	
 	let res = await vault.init(web3)
@@ -75,6 +76,8 @@ app.listen(process.env.PORT, async() => {
 })
 
 var admin = express()
+// serve static html
+app.use(express.static('public'))
 // mount the admin app
 app.use('/admin', admin)
 admin.use(basicAuth('admin', process.env.ADMIN_PASSWORD))
@@ -93,7 +96,7 @@ const asyncMiddleware = fn =>
 }
 
 // displays title and information about the service
-app.get('/', function (request, response) {
+app.get('/settings', function (request, response) {
   // response.json(process.env.TITLE + ' version ' + process.env.VERSION)
   response.json(util.config())
 })
@@ -240,14 +243,15 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 // Get the hashrate share for an account
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares
 app.get('/blockshares', asyncMiddleware( async (request, response, next) => {
-	let res = await dbo.collection('sharecount').find({}).toArray()
+	// let res = await dbo.collection('sharecount').find({}).toArray()
+    let res = await util.sharesCurrent(dbo, mineable, process.env.TARGET_CONTRACT)
     response.json(res)
 }))
 
 // Get the blockshares share for a challengeNumber
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/blockshares/challenge/0xchallengeNumber
 app.get('/blockshares/challenge/:challengeNumber', asyncMiddleware( async (request, response, next) => {
-	let docs = await util.shareCount(dbo, request.params.challengeNumber)
+	let docs = await util.sharesForChallenge(dbo, request.params.challengeNumber)
     response.json(docs)
 }))
 

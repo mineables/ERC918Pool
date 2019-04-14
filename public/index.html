@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+</head>
+<body>
+
+	<div id="app">
+	  <v-app id="inspire">
+	    <v-navigation-drawer
+	      v-model="drawer"
+	        fixed
+	        dark
+	        app
+	      >
+	      <v-list dense>
+	        <v-list-tile @click="">
+	          <v-list-tile-action>
+	            <v-icon>home</v-icon>
+	          </v-list-tile-action>
+	          <v-list-tile-content>
+	            <v-list-tile-title>
+						Home
+	            </v-list-tile-title>
+	          </v-list-tile-content>
+	        </v-list-tile>
+	        <v-list-tile @click="">
+	          <v-list-tile-action>
+	            <v-icon>contact_mail</v-icon>
+	          </v-list-tile-action>
+	          <v-list-tile-content>
+	            <v-list-tile-title>Contact</v-list-tile-title>
+	          </v-list-tile-content>
+	        </v-list-tile>
+	      </v-list>
+	    </v-navigation-drawer>
+	    <v-toolbar color="indigo" dark fixed app>
+	      <v-toolbar-side-icon @click.stop="drawer = !drawer"></v-toolbar-side-icon>
+	      <v-toolbar-title>{{name}}</v-toolbar-title>
+	    </v-toolbar>
+	    <v-content>
+	      <v-container fluid fill-height>
+	        <v-layout
+	          justify-center
+	          align-center>
+	          <v-flex text-xs-center>
+	           
+	           <h1>Token Block Shares</h1>
+	           <br>
+			
+	           <h2>Total Shares: {{totalShares}}</h2>
+			    <h3>Current Challenge: <small>{{currentChallenge}}</small></h3>
+			    <br>
+	            <div >
+					<v-card>
+				      <v-card-title>
+				        Nutrition
+				        <v-spacer></v-spacer>
+				        <v-text-field
+				          v-model="search"
+				          append-icon="search"
+				          label="Search"
+				          single-line
+				          hide-details
+				        ></v-text-field>
+				      </v-card-title>
+
+					  <v-data-table
+					    :headers="headers"
+					    :items="blockshares"
+					    :search="search"
+					    hide-actions
+					    class="elevation-1">
+					    <template v-slot:items="props">
+
+					      <td class="text-xs-left">
+							<a v-bind:href="'/address.html?address='+ props.item._id.origin">
+								{{ props.item._id.origin }}
+							</a>
+
+					      </td>
+					      <td class="text-xs-left">{{ props.item.count + props.item.vcount }} / {{ totalShares }}</td>
+					      <td class="text-xs-left">{{ props.item.percentShareRounded }} %</td>
+					    </template>
+					  </v-data-table>
+				</div>
+
+	          </v-flex>
+	        </v-layout>
+	      </v-container>
+	    </v-content>
+	    <v-footer color="indigo" app inset>
+	      <span class="white--text">&copy; 2019</span>
+	    </v-footer>
+	  </v-app>
+	</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue-router"></script>
+
+
+  <script>
+	Vue.use( VueRouter )
+    new Vue({
+	    el: '#app',
+	    router: new VueRouter(),
+	    props: {
+	      source: String
+	    },
+		  data: {
+		    drawer: null,
+		    search: '',
+		    name: 'Mineables Pool',
+		    headers: [
+	          {
+	            text: 'Account',
+	            //align: 'left',
+	            sortable: false,
+	            value: 'name'
+	          },
+	          { text: 'Shares', sortable: false, value: 'shares' },
+	          { text: 'Portion (%)', sortable: false, value: 'portion' }
+	        ],
+	        blockshares: [], 
+	        totalShares: 0,
+	        currentChallenge: ''
+		  },
+		  created: function () {
+		    // `this` points to the vm instance
+		    
+		  },
+		  methods: {
+		    getUsers: function(){
+	            this.$http.get('/blockshares').then(function(response){
+	                this.blockshares = response.data;
+
+	                if(this.blockshares) {
+	                	this.blockshares.forEach(function(v) { 
+	                		v.name = v._id.origin 
+	                		v.percentShareRounded = v.percentShare.toFixed(4)
+	                	});
+	                }
+
+	                this.totalShares = response.data[0] ? response.data[0].totalBlockshares : 0
+	                this.currentChallenge = response.data[0] ? response.data[0].challengeNumber : 0
+	            }, function(error){
+	                console.log(error.statusText);
+	            });
+	        }
+		  },
+    	  mounted: function () {
+    	  	console.log('mounted')
+            this.getUsers();
+          }
+		  
+	})
+
+  </script>
+</body>
+</html>
