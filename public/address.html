@@ -67,6 +67,7 @@
 					      <td>{{ props.item.payout }}</td>
 					      <td class="text-xs-left">{{ props.item.contract }}</td>
 					      <td class="text-xs-left">{{ props.item.mintTxn }}</td>
+					      <td class="text-xs-left">{{ props.item.payoutTxn }}</td>
 					      <td class="text-xs-left">{{ props.item._id }}</td>
 					    </template>
 					  </v-data-table>
@@ -108,6 +109,7 @@
 	          },
 	          { text: 'Contract', value: 'contract' },
 	          { text: 'Mint Txn', value: 'mint' },
+	          { text: 'Payout Txn', value: 'payout' },
 	          { text: 'id', value: 'id' },
 	        ],
 	        address: '',

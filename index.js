@@ -105,23 +105,51 @@ app.get('/settings', function (request, response) {
 // curl -H "Content-Type: application/json" http://127.0.0.1:3000/account/0xaddress
 app.get('/account/:account', asyncMiddleware( async (request, response, next) => {
 	let results = {}
-	let docs = await dbo.collection('payouts').aggregate(
-	[
-	    {
-		  $match: {
-			   account: { $eq: request.params.account },
-			   payoutTxn: { $exists: false }
-		  } 
-		},
-	    {
-		  $group : {
-		       _id : { account: '$account', contract: '$contract' },
-		       unpaid: { $sum: '$payout' }
-		  }
-	  	}
-	]
+	let totalResults = await dbo.collection('payouts').aggregate(
+		[
+		    {
+			  $match: {
+				   account: { $eq: request.params.account },
+			  } 
+			},
+		    {
+			  $group : {
+			       _id : { account: '$account', contract: '$contract' },
+			       paid: { $sum: '$payout' },
+			  }
+		  	}
+		]
 	).toArray()
-	response.json(docs)
+
+	var total = 0
+	if(totalResults[0]){	
+		total = totalResults[0].paid
+	}
+
+	let unpaidResults = await dbo.collection('payouts').aggregate(
+		[
+		    {
+			  $match: {
+				   account: { $eq: request.params.account },
+				   payoutTxn: { $exists: false }
+			  } 
+			},
+		    {
+			  $group : {
+			       _id : { account: '$account', contract: '$contract' },
+			       unpaid: { $sum: '$payout' },
+			  }
+		  	}
+		]
+	).toArray()
+	
+	results = totalResults
+	if(unpaidResults[0]) {
+		results.paid = total - unpaidResults[0].unpaid
+		results.unpaid = unpaidResults[0].unpaid
+	}
+
+	response.json(results)
 
 }))
 
