@@ -115,7 +115,7 @@ app.get('/account/:account', asyncMiddleware( async (request, response, next) =>
 		    {
 			  $group : {
 			       _id : { account: '$account', contract: '$contract' },
-			       paid: { $sum: '$payout' },
+			       total: { $sum: '$payout' },
 			  }
 		  	}
 		]
@@ -123,7 +123,7 @@ app.get('/account/:account', asyncMiddleware( async (request, response, next) =>
 
 	var total = 0
 	if(totalResults[0]){	
-		total = totalResults[0].paid
+		total = totalResults[0].total
 	}
 
 	let unpaidResults = await dbo.collection('payouts').aggregate(
@@ -142,11 +142,11 @@ app.get('/account/:account', asyncMiddleware( async (request, response, next) =>
 		  	}
 		]
 	).toArray()
-	
+
 	results = totalResults
-	if(unpaidResults[0]) {
-		results.paid = total - unpaidResults[0].unpaid
-		results.unpaid = unpaidResults[0].unpaid
+	if(unpaidResults) {
+		results[0].paid = total - unpaidResults[0].unpaid
+		results[0].unpaid = unpaidResults[0].unpaid
 	}
 
 	response.json(results)
