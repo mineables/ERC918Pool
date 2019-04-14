@@ -279,6 +279,13 @@ admin.get('/prune', asyncMiddleware( async (request, response, next) => {
 	response.json('done')
 }))
 
+// admin payout all
+admin.get('/payout/all', asyncMiddleware( async (request, response, next) => {
+	console.log('Prcoessing payouts...')
+	util.processPayouts(dbo, this.poolAccount, mineable)
+	console.log('Payouts complete.')
+}))
+
 // admin payout single
 admin.get('/payout/:account', asyncMiddleware( async (request, response, next) => {
 	await util.processPayoutSingle(dbo, this.poolAccount, mineable, request.params.account)
