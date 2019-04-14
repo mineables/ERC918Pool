@@ -222,18 +222,22 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	// check if the solution solves a token block
 	let validBlock = await util.validateBlock(mineable, p.contract, p.origin, pRequest.nonce)
 	if ( validBlock === true ) {
-		console.log('-- Found block -- ')
-		let dmResults = mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
-		console.log('dmResults: ' + dmResults)
-		dmResults = JSON.parse(dmResults)
-		console.log('dmResults2: ' + dmResults)
-	    let txnId = dmResults.transactionHash
-		let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
-		if(payouts.length > 0) { 
-			await dbo.collection('payouts').insertMany(payouts)
+		try{
+			console.log('-- Found block -- ')
+			let dmResults = await mineable.delegatedMint( this.poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
+			console.log('dmResults: ' + dmResults)
+			dmResults = JSON.parse(dmResults)
+			console.log('dmResults2: ' + dmResults)
+		    let txnId = dmResults.transactionHash
+			let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
+			if(payouts.length > 0) { 
+				await dbo.collection('payouts').insertMany(payouts)
+			}
+			// clear out all submitted shares for challenge
+			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
+		catch(e){
+			console.log(e)
 		}
-		// clear out all submitted shares for challenge
-		await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 	}
 	await dbo.collection('submitted').insertOne({'nonce': request.body.nonce})
 	// now delete the share, since its been acounted for
