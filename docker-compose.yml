@@ -2,7 +2,9 @@ version: '3'
 services:
 
   redis:
-    image: redis:4.0.5-alpine
+    image: redis
+    ports:
+      - "6379:6379"
 
   mongo:
     image: 'mongo:latest'
@@ -14,10 +16,13 @@ services:
 
   app:
     command: node index.js
+    environment:
+      - REDIS_ADDR=redis:6379
     env_file: 
       - .env
     depends_on:
       - mongo
+      - redis
     restart: always
     build: .
     ports:
