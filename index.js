@@ -66,9 +66,9 @@ app.listen(process.env.PORT, async() => {
 	  */
 
 	  // payouts schedule
-	  schedule.scheduleJob(process.env.PAYOUTS_CRON, function(){
+	  schedule.scheduleJob(process.env.PAYOUTS_CRON, async function(){
 	    console.log('Prcoessing payouts...')
-	    util.processPayouts(dbo, poolAccount, mineable)
+	    await util.processPayouts(dbo, poolAccount, mineable)
 	    console.log('Payouts complete.')
 	  })
 	})
