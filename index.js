@@ -256,6 +256,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 		try {
 			console.log('-- Found block -- ')
 			mineable.delegatedMint( poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract, async function(err, dmResults) {
+				if(err) console.log(err)
 				console.log('dmResults: ' + dmResults)
 			    let txnId = dmResults.transactionHash
 				let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
