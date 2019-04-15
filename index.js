@@ -255,18 +255,15 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 	if ( validBlock === true ) {
 		try {
 			console.log('-- Found block -- ')
-			mineable.delegatedMint( poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract, async function(err, dmResults) {
-				if(err) console.log(err)
-				console.log('dmResults: ' + dmResults)
-			    let txnId = dmResults.transactionHash
-				let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
-				if(payouts.length > 0) { 
-					await dbo.collection('payouts').insertMany(payouts)
-				}
-				// clear out all submitted shares for challenge
-				await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
-
-			})
+			let dmResults = await mineable.delegatedMint( poolAccount, pRequest.nonce, p.origin, pRequest.signature, p.contract)
+			console.log('dmResults: ' + dmResults)
+		    let txnId = dmResults.transactionHash
+			let payouts = await util.snapPayout(dbo, txnId, p.contract, mineable, p.challengeNumber)
+			if(payouts.length > 0) { 
+				await dbo.collection('payouts').insertMany(payouts)
+			}
+			// clear out all submitted shares for challenge
+			await dbo.collection('shares').deleteMany({challengeNumber: p.challengeNumber})
 		} catch(e) {
 			console.log(e)
 		}
