@@ -207,6 +207,7 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 
 	var found = await dbo.collection('submitted').findOne({'nonce': request.body.nonce})
 	if(found) {
+		console.log('solution has already been submitted')
 		throw 'solution has already been submitted'
 	}
   	var pRequest = request.body
@@ -276,6 +277,11 @@ app.post('/share/submit', asyncMiddleware( async (request, response, next) => {
 
 	
 	
+}))
+
+app.get('/submitted', asyncMiddleware( async (request, response, next) => {
+	let res = await dbo.collection('submitted').find({}).toArray()
+    response.json(res)
 }))
 
 // Get the hashrate share for an account
